@@ -92,7 +92,10 @@ enum OutputFormat_t outputFormat;
  * @param dataPacketType identifier to designate pattern to fill buffer
  */
 void update_write_memory_pattern(uint64_t item, char * buf, size_t bytes, int rand_seed, int pretendRank, ior_dataPacketType_e dataPacketType, ior_memory_flags type){
-  if (dataPacketType == DATA_TIMESTAMP || bytes < 8)
+  if (bytes < 8
+          || dataPacketType == DATA_TIMESTAMP
+          || dataPacketType == DATA_ZERO
+          || dataPacketType == DATA_REPEAT_BYTE)
     return;
 
 #ifdef HAVE_GPU_DIRECT
@@ -160,6 +163,12 @@ void generate_memory_pattern(char * buf, size_t bytes, int rand_seed, int preten
       }case(DATA_TIMESTAMP):{
         buffi[i] = ((uint64_t) pretendRank) << 32 | rand_seed + i;
         break;
+      }case(DATA_ZERO):{
+        buffi[i] = 0x0000000000000000;
+        break;
+      }case(DATA_REPEAT_BYTE):{
+        buffi[i] = 0x7474747474747474;
+        break;
       }
     }
   }
@@ -215,6 +224,12 @@ int verify_memory_pattern(uint64_t item, char * buffer, size_t bytes, int rand_s
       }case(DATA_OFFSET):{
       }case(DATA_TIMESTAMP):{
         exp = ((uint64_t) pretendRank) << 32 | rand_seed + i;
+        break;
+      }case(DATA_ZERO):{
+        exp = 0x0000000000000000;
+        break;
+      }case(DATA_REPEAT_BYTE):{
+        exp = 0x7474747474747474;
         break;
       }
     }
@@ -299,6 +314,10 @@ ior_dataPacketType_e parsePacketType(char t){
             return DATA_OFFSET;
     case 'r': /* randomized blocks */
             return DATA_RANDOM;
+    case 'z':
+            return DATA_ZERO;
+    case 'b':
+            return DATA_REPEAT_BYTE;
     default:
       ERRF("Unknown packet type \"%c\"; generic assumed\n", t);
       return DATA_OFFSET;
